@@ -1,0 +1,81 @@
+! ********** Solution options
+tsteps = 20                      				! number of time step
+tsteps= NINT(strain/10*tsteps)   		        ! correct wrt strain
+/solu
+
+antype,static
+outpr,,none
+outres,all,-100
+nlgeom,on
+cutcontrol,plslimit,0.15 
+eqsl,sparse,,,alt2
+bcso,,incore
+!cnvtol,f,1,1e-5
+!resc,defi,all,-100,10
+lnsrch,on
+autots,on
+neqit,50
+nsubst,tsteps,tsteps*2000,NINT(tsteps/25)
+time,1
+
+save,assembledProblem,db,,all
+*get,solTime(1,1),active,0,time,wall
+*get,solTime(1,2),active,0,time,cpu
+
+allsel
+solve
+save,step1Complete,db,,all
+*get,solTime(2,1),active,0,time,wall
+*get,solTime(2,2),active,0,time,cpu
+!/exit,all
+save
+
+
+! ********** Compression: Post processing and result extraction
+/post1 
+set,last
+*get,ifcnv,active,,solu,cnvg
+*get,nset,active,,set,nset
+*if,ifcnv,eq,0,then
+     set,previous
+	 nset = nset - 1
+*endif
+
+Npointer = npil+1
+
+*del,resultCompression
+*dim,resultCompression,TABLE,nset,12
+
+allsel
+csys,0
+
+*do,i,1,nset
+    set,,,,,,,i
+    /com, active set %i% out of %nset%
+
+	! ********** Getting force information
+    ! Data collection, pilot node
+    *get,resultCompression(i,1),node,Npointer,u,x		! Displacements
+    *get,resultCompression(i,2),node,Npointer,u,y
+    *get,resultCompression(i,3),node,Npointer,u,z
+    *get,resultCompression(i,4),node,Npointer,rf,fx		! Reaction forces
+    *get,resultCompression(i,5),node,Npointer,rf,fy
+    *get,resultCompression(i,6),node,Npointer,rf,fz
+
+    *get,resultCompression(i,7),node,Npointer+1,u,x		! Displacements
+    *get,resultCompression(i,8),node,Npointer+1,u,y
+    *get,resultCompression(i,9),node,Npointer+1,u,z
+    *get,resultCompression(i,10),node,Npointer+1,rf,fx	! Reaction forces
+    *get,resultCompression(i,11),node,Npointer+1,rf,fy
+    *get,resultCompression(i,12),node,Npointer+1,rf,fz
+*enddo
+allsel
+
+
+! ********** To create compression data matrix in CSV format
+*MWRITE,resultCompression(1,1),compressionForce,csv,,JIK,12,nset,1 
+(15f15.3) 
+
+/solu
+antype,static,restart,,,continue
+

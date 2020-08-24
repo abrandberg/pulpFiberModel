@@ -1,0 +1,21 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Fiber Micro-Mechanical Model
+! August Brandberg
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+! ********** Meta instructions
+fini
+/cle
+/nerr,0,90000000,,0,0
+
+*dim,solTime,array,20,2
+
+elemnumOld = 1
+ymaxtemp = 0
+cCounter = 20   ! This is the base coordinate system used to define the position of other fibers
+rCounter = 20   ! This is the base real set to be used for incrementing contact formulations
+plateStatus = 1 ! This is the switch indicating whether the plates have been deleted yet or not.
+etemp = 0
+pCount = 4

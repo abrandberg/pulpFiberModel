@@ -1,0 +1,181 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Boundary conditions: Transverse compression with 4 plates, 105% strain
+!
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+sizeL = LFib/kldel
+topFac = sizeL*NINT(0.5*kldel)
+botFac = sizeL*NINT(0.5*kldel)
+! ********** New element assignment
+! Hull and contact elements
+seltol,1e-4
+csys,1
+! --- top
+mat,1								!1
+nsel,,loc,x,Rout    				! Rout = external radius
+nsel,r,loc,y,0,180                  ! 0 - 180 = top half
+nsel,r,loc,z,0,topFac
+esln                					! Selects those elements attached to the selected nodes.
+type,2		             					! Element type
+real,1              					! Real constant, 1=top
+esurf	 		          				! Generate contact elements 
+
+mat,1								!1
+nsel,,loc,x,Rout    				! Rout = external radius
+nsel,r,loc,y,0,180                  ! 0 - 180 = top half
+nsel,r,loc,z,topFac,LFib
+esln                					! Selects those elements attached to the selected nodes.
+type,2		             					! Element type
+real,1              					! Real constant, 1=top
+esurf	 		          				! Generate contact elements 
+
+! --- bottom
+mat,1
+nsel,,loc,x,Rout
+nsel,r,loc,y,180,360 ! astep=step on angle
+nsel,r,loc,z,0,botFac
+esln
+type,4
+real,2
+esurf
+
+mat,1
+nsel,,loc,x,Rout
+nsel,r,loc,y,180,360 ! astep=step on angle
+nsel,r,loc,z,botFac,LFib
+esln
+type,4
+real,2
+esurf
+
+! --- self contact and target elements top and bottom
+nsel,,loc,x,Rin                              ! Rin=internal radius
+esln
+mat,2
+type,6
+real,3 
+esurf
+type,3
+real,3
+esurf
+
+alls
+
+
+! ********** Load parameters
+!strain = 80               ! obs      				! applied strain in %
+
+
+! ********** Boundary conditions
+alls
+! UZ Locked
+nsel,s,LOC,Z,0,0
+nsel,a,LOC,Z,LFib,LFib  
+CP,next,uz,all
+	
+allsel
+
+
+! ********** Target elements (press)
+/prep7
+csys,0
+
+*get,maxx,node,,mxloc,x
+*get,minx,node,,mnloc,x
+
+*get,maxz,node,,mxloc,z
+*get,minz,node,,mnloc,z
+
+alen = (maxz-minz)/2
+
+*get,nmax,node,,num,maxd
+esel,type,1
+nsle
+
+*get,maxy,node,,mxloc,y
+*get,miny,node,,mnloc,y
+allsel
+athick = (maxy-miny)
+
+
+! ********** Create rigid plates
+xFactor = 1.2*maxx
+zFactorMin = 0.2*LFib
+zFactorMax = 1.2*LFib
+
+zFactorDiv = topFac
+
+csys,0
+! --- top, bottom
+n,,-xFactor, maxy,-zFactorMin
+n,, xFactor, maxy,-zFactorMin
+n,, xFactor, maxy, zFactorDiv
+n,,-xFactor, maxy, zFactorDiv
+mmm = node(-xFactor, maxy,-zFactorMin) ! Node number
+type,5
+real,1
+e,mmm,mmm+1,mmm+2,mmm+3
+
+! --- top, front
+n,,-xFactor, maxy, zFactorDiv
+n,, xFactor, maxy, zFactorDiv
+n,, xFactor, maxy, zFactorMax
+n,,-xFactor, maxy, zFactorMax
+mmm = node(-xFactor, maxy, zFactorMax) ! Node number
+type,5
+real,1!4
+e,mmm-3,mmm-2,mmm-1,mmm
+
+! --- bottom, bottom
+zFactorDiv = botFac
+n,,-xFactor, miny,-zFactorMin
+n,,-xFactor, miny, zFactorDiv
+n,, xFactor, miny, zFactorDiv
+n,, xFactor, miny,-zFactorMin
+nnn = node(-xFactor, miny,-zFactorMin)
+type,5
+real,2
+e,nnn,nnn+1,nnn+2,nnn+3 !order assign botom or surface with rigt hand rule. No need csym
+alls
+
+! --- top, front
+n,,-xFactor, miny, zFactorDiv
+n,,-xFactor, miny, zFactorMax
+n,, xFactor, miny, zFactorMax
+n,, xFactor, miny, zFactorDiv
+nnn = node(-xFactor, miny, zFactorMax)
+type,5
+real,2!5
+e,nnn-1,nnn,nnn+1,nnn+2 !order assign botom or surface with rigt hand rule. No need csym
+alls
+
+
+*get,npil,node,,num,maxd
+tshap,pilo
+type,5
+real,1
+n,npil+1,0,maxy,0
+e,npil+1
+!real,10
+!n,npil+2,0,maxy,LFib
+!e,npil+2
+real,2
+n,npil+2,0,miny,0
+e,npil+2
+!real,12
+!n,npil+4,0,miny,LFib
+!e,npil+4
+shpp,on
+check
+
+
+! ********** Load step 1: Compression
+/solu
+d,npil+1,all
+d,npil+2,all
+!d,npil+3,all
+!d,npil+4,all
+d,npil+1,uy,-strain*(athick-2*tkn)/100   		! apply displacement, athick= maxy-miny,  
+!d,npil+2,uy,-strain*(athick-2*tkn)/100   		! apply displacement, athick= maxy-miny,  
+

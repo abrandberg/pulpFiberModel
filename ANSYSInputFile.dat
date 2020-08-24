@@ -1,0 +1,568 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Fiber Micro-Mechanical Model
+! August Brandberg
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+! ********** Meta instructions
+fini
+/cle
+/nerr,0,90000000,,0,0
+
+*dim,solTime,array,20,2
+
+elemnumOld = 1
+ymaxtemp = 0
+cCounter = 20   ! This is the base coordinate system used to define the position of other fibers
+rCounter = 20   ! This is the base real set to be used for incrementing contact formulations
+plateStatus = 1 ! This is the switch indicating whether the plates have been deleted yet or not.
+etemp = 0
+pCount = 4
+
+Rin = 8
+tkn = 3.5
+ang = 0
+LFib = 100
+strain = 95
+Rout = Rin+tkn                  			    ! external radius
+
+
+! ********** Calculated parameters
+Pi = acos(-1)                                   ! 3.1415..
+*afun,deg                                       ! trigonometric in degrees
+
+
+! ********** Numerical parameters
+krdel = 2										! partitions per radius
+kcdel = 30										! partitions per circumference
+kldel = 10                                      ! partitions per length
+kface = (krdel+1)*(kcdel+1)             		! number of nodes on the face
+
+esizeL = LFib/(kldel                            ! element size in the length direction
+esizeT = tkn/(krdel)                            ! element size in the thickness direction
+esizeH = 2*Pi*Rin/(kcdel)                       ! element size in the hoop direction
+
+rstep = (Rout-Rin)/krdel        				! step on radius
+astep = 360/kcdel               				! step on angle
+lstep = LFib/kldel              				! step on length
+
+
+! ********** Fiber type: CTMP Pulp
+pMulti = kcdel*krdel
+mvf = 0.55                          ! Volume fraction matrix
+numer = mvf*pMulti
+denom = 1*pMulti 
+
+! ********** Select element types and their properties
+seltol,1e-6
+/prep7
+
+et,1,185										! solid element for volumes
+!keyopt,1,2,2
+!keyopt,1,6,1
+
+et,2,174										! contact element
+KEYOPT,2,1,0
+KEYOPT,2,2,0
+KEYOPT,2,5,4
+KEYOPT,2,6,2
+KEYOPT,2,10,0
+KEYOPT,2,12,3
+KEYOPT,2,15,3
+
+et,4,174
+KEYOPT,4,1,0
+KEYOPT,4,2,0
+KEYOPT,4,5,4
+KEYOPT,4,6,2
+KEYOPT,4,10,0
+KEYOPT,4,12,3
+KEYOPT,4,15,3
+
+et,6,174
+KEYOPT,6,1,0
+KEYOPT,6,2,0
+KEYOPT,6,5,4
+KEYOPT,6,6,2
+KEYOPT,6,10,0
+KEYOPT,6,12,3
+KEYOPT,6,15,3
+
+et,3,170,,1									    ! target element
+et,5,170,,1
+et,7,170,,1
+
+
+
+! ********** Material properties
+!------ fibril--------
+mptemp,   1,0  
+mpdata,dens,1,,1e-18
+mpdata,  ex,1,,134e3/2
+mpdata,  ez,1,,134e3/2
+mpdata,  ey,1,,134e3/2
+mpdata,prxz,1,,0.2!0.1
+mpdata,prxy,1,,0.2!0.04
+mpdata,pryz,1,,0.2!0.1
+mpdata, gxz,1,,4.4e3/2
+mpdata, gxy,1,,4.4e3/2
+mpdata, gyz,1,,4.4e3/2
+tb,biso,1,1,2
+tbtemp,0
+tbdata,,1000,2000
+
+! --- matrix
+mptemp,   1,0 
+mpdata,dens,2,,1e-18
+mpdata,  ex,2,,4e3
+mpdata,  ez,2,,4e3
+mpdata,  ey,2,,4e3
+mpdata,prxz,2,,0.2!0.2
+mpdata,prxy,2,,0.2!0.01
+mpdata,pryz,2,,0.2!0.2
+mpdata, gxz,2,,2e3
+mpdata, gxy,2,,2e3
+mpdata, gyz,2,,2e3
+tb,biso,2,1,2
+tbtemp,0
+tbdata,,100,250
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This is the first part of the extension from modelling single fibers to 
+! modelling bond crosses and entire networks. Basically, this file tells
+! where the center of the fiber should be:
+!
+xOrigin = 0
+yOrigin = 0
+zOrigin = 0
+thxyOrigin = 0
+thyzOrigin = 0
+thzxOrigin = 0
+
+csys,0
+clocal,cCounter+1,0,xOrigin,yOrigin,zOrigin,thxyOrigin,thyzOrigin,thzxOrigin
+csys,0
+clocal,cCounter+2,1,xOrigin,yOrigin,zOrigin,thxyOrigin,thyzOrigin,thzxOrigin
+csys,0                                                                     ! Go back to the standard coordinate system before doing anything else, just in case.
+
+cCounter = cCounter + 2
+
+
+
+! ********** Specify real constants for contact sets
+r,1,,,			      						! Adhesive Bond between fibers
+r,2,,,    									! Bottom and Target
+r,3,,, 										! Self  !Contact inside below fiber
+r,4,,, 										! Self  !Contact inside top fiber
+r,5,,,		    							! Top and Target
+
+
+! ********** Mapping keypoints with specified granularity
+! --- all the keypoints
+csys,1
+NNN = NINT(LFib/lstep) + 1
+*dim,kps,array,NNN
+i = 0
+slang = 0
+
+
+*if,ang,eq,0,then
+    sang = 0
+*else
+    Pitch = 2*sin(90-ang)*Pi*Rout/sqrt(1-sin(90-ang)**2)
+    b = Pitch/(2*Pi)
+    Lhel = sqrt(Rout**2+b**2)*2*Pi*LFib/Pitch
+    sang = 360*LFib/Pitch
+*endif
+
+
+*do,curl,0,LFib,lstep
+    slang = curl/LFib*sang !slang = slang + ang*(1/kldel)!curl/LFib*ang
+    *do,theta,0,360,astep
+        cyrt = mod(theta+slang,360)
+        *do,curr,Rin,Rout,rstep
+            k,,curr,cyrt,curl
+        *enddo
+    *enddo
+    i = i + 1
+    *get,kps(i),kp,,num,maxd
+    
+*enddo
+NNN = i
+
+
+! ********** Meshing all volumes with attributes
+count = 1
+*dim,darray,,denom
+
+*do,i,1,denom                                       ! volset - a set of volume numbering; set1 = matrix selection, set2 - cellulose selection
+    darray(i) = i
+*enddo
+
+*do,i,denom,1+1,-1                                  ! shuffle darray in order to get a unique random integers array
+    irand = nint(rand(0.5,i+0.4999))             
+    tmp = darray(i)
+    darray(i) = darray(irand)
+    darray(irand) = tmp
+*enddo
+
+vnum = 0
+test = 0
+*do,i,1,kcdel
+    *do,ii,2,krdel+1
+        test = test + 1
+        *if,ii,eq,krdel+1,then
+            coun = 1
+        *endif
+        flag = 0
+        *do,iii,1,kldel
+            ikp = kface*(iii-1)+(krdel+1)*(i-1)+ii
+            jkp = ikp+kface
+            kkp = jkp-1
+            lkp = ikp-1
+            mkp = ikp+krdel+1
+            nkp = mkp+kface
+            okp = nkp-1
+            pkp = mkp-1  
+            v,ikp,jkp,kkp,lkp,mkp,nkp,okp,pkp
+
+            vnum = vnum + 1
+            velem = mod(test,denom+1)
+                        
+			! Assign the parameters for the volumes
+            ! check if volume number is in the selection array
+
+            *do,j,1,numer
+               *if,velem,eq,darray(j),then
+                   flag = 1
+               *endif
+            *enddo   
+            
+            vsel,,,,vnum
+
+            *if,flag,eq,1,then
+                vatt,2,,1       ! matrix
+                         
+            *else
+                vatt,1,,1        ! cellulose
+                *if,ii,eq,krdel+1,then
+                    vmn = vnum
+                    coun = coun+1       
+                *endif
+            *endif
+
+            vsel,all
+            
+            count = count + 1
+        *enddo
+    *enddo
+*enddo
+
+
+vsel,all
+
+nummrg,kp                        ! merge keypoints
+numcmp,all                       ! compress numbers
+
+*do,i,0,kldel                    ! choose all the "fibrils" lines
+    lsel,u,loc,z,i*lstep
+*enddo
+
+*get,llen,line,lsnext(0),leng
+lesize,all,esizeL
+lsel,inve                        ! choose cross-section lines
+								 ! --- soften the tolerance
+*do,curl,0,LFib,lstep
+    slang = curl/LFib*ang
+    *do,theta,0,360,astep
+        lsel,u,loc,y,mod(theta+slang,360)
+    *enddo
+*enddo
+
+*get,llen,line,lsnext(0),leng
+lesize,all,esizeH
+
+alls
+lesize,all,esizeT
+
+allsel
+mshape,0,3d 
+mshkey,1                        !use mapped mashing
+vmesh,all
+
+ 
+!******************
+alls
+shpp,off
+modmsh,detach
+vdele,all,,,1
+allsel,all
+shpp,on
+eplot
+
+alls
+csys,0
+seltol,1e-7
+
+esel,all
+*get,elnum,elem,0,num,max
+
+csys,1
+*vget,ecent,elem,,cent,y
+
+!*do,j,1,elnum
+!    local,12+j,0,,,,ecent(j),-ang
+!    emodif,j,esys,12+j
+!*enddo
+
+
+*get,cdsymax,cdsy,,num,max
+
+*do,j,1,elnum
+    
+    *get,tempNode1,elem,j,node,1        ! 
+    *get,tempNode2,elem,j,node,2        ! 
+    *get,tempNode3,elem,j,node,3
+    *get,tempNode4,elem,j,node,4    
+    *get,tempNode6,elem,j,node,6        ! 
+
+    cs,cdsymax+j,0,tempNode2,tempNode3,tempNode6 
+    clocal,cdsymax+j,0,0,0,0,0,0,90
+
+    emodif,j,esys,cdsymax+j
+    csys,1
+*enddo
+allsel
+
+csys,0
+alls
+
+! ********** Create some CMs for tracking the ends
+csys,1
+seltol,1e-4
+nsel,s,loc,x,Rout
+nsel,r,loc,z,LFib
+cm,FibEndOuter,nodes
+
+nsel,s,loc,x,Rin
+nsel,r,loc,z,LFib
+cm,FibEndInner,nodes
+
+allsel
+csys,0
+
+
+/reset
+save
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This snippet introduces the boundary conditions for:
+! LONGITUDINAL (Z-Direction) COMPRESSION
+!
+! It adresses the following modelling steps:
+! - Assign contact elements to the relevant areas:
+!   ¤ First open end of fiber.
+!   ¤ Second open end of fiber.
+!   ¤ Lumen.
+! - 
+
+! ********** New element assignment
+! Hull and contact elements
+seltol,1e-4
+csys,1                                  ! Cylindrical coordinate system
+
+! --- bottom
+mat,1								    ! 
+nsel,,loc,z,0
+esln                					! Selects those elements attached to the selected nodes.
+type,2		             				! Element type
+real,1              					! Real constant, 1=top
+esurf	 		          				! Generate contact elements 
+
+! --- front
+mat,1
+nsel,,loc,z,LFib
+esln
+type,4
+real,2
+esurf
+
+! --- self contact and target elements top and bottom
+nsel,,loc,x,Rin                              ! Rin=internal radius
+esln
+mat,2
+type,6
+real,3 
+esurf
+type,3
+real,3
+esurf
+
+alls
+
+
+! ********** Load parameters
+strain = 20               ! obs      				! applied strain in %
+
+
+! ********** Boundary conditions
+
+
+
+! ********** Target elements (press)
+/prep7
+csys,0
+
+*get,maxz,node,,mxloc,z
+*get,minz,node,,mnloc,z
+
+alen = (maxz-minz)/2
+
+*get,nmax,node,,num,maxd
+esel,type,1
+nsle
+
+*get,maxy,node,,mxloc,y
+*get,miny,node,,mnloc,y
+allsel
+athick = (maxy-miny)
+
+
+! ********** Create rigid plates
+xFactor = 1.2*Rout
+yFactorMin = -1.2*Rout
+yFactorMax = 1.2*Rout
+
+csys,0
+! --- top, 
+n,,-xFactor, yFactorMin, minz
+n,, xFactor, yFactorMin, minz
+n,, xFactor, yFactorMax, minz
+n,,-xFactor, yFactorMax, minz
+mmm = node(-xFactor, yFactorMin,minz) ! Node number
+type,5
+real,1
+e,mmm,mmm+1,mmm+2,mmm+3
+
+! --- bottom, 
+n,,-xFactor, yFactorMin, maxz
+n,,-xFactor, yFactorMax, maxz
+n,, xFactor, yFactorMax, maxz
+n,, xFactor, yFactorMin, maxz
+nnn = node(-xFactor, yFactorMin, maxz)
+type,5
+real,2
+e,nnn,nnn+1,nnn+2,nnn+3 !order assign botom or surface with rigt hand rule. No need csym
+alls
+
+*get,npil,node,,num,maxd
+tshap,pilo
+type,5
+real,1
+n,npil+1,0,maxy
+e,npil+1
+real,2
+n,npil+2,0,miny
+e,npil+2
+
+shpp,on
+check
+
+
+! ********** Load step 1: Compression
+/solu
+d,npil+1,all
+d,npil+2,all
+d,npil+1,uz,0
+d,npil+2,uz,-strain*(athick-2*tkn)/100   		! apply displacement, athick= maxy-miny,  
+
+
+
+! ********** Solution options
+tsteps = 20                      				! number of time step
+tsteps= NINT(strain/10*tsteps)   		        ! correct wrt strain
+/solu
+
+antype,static
+outpr,,none
+outres,all,-100
+nlgeom,on
+cutcontrol,plslimit,0.15 
+eqsl,sparse,,,alt2
+bcso,,incore
+!cnvtol,f,1,1e-5
+!resc,defi,all,-100,10
+lnsrch,on
+autots,on
+neqit,50
+nsubst,tsteps,tsteps*2000,NINT(tsteps/25)
+time,1
+
+save,assembledProblem,db,,all
+*get,solTime(1,1),active,0,time,wall
+*get,solTime(1,2),active,0,time,cpu
+
+allsel
+solve
+save,step1Complete,db,,all
+*get,solTime(2,1),active,0,time,wall
+*get,solTime(2,2),active,0,time,cpu
+!/exit,all
+save
+
+
+! ********** Compression: Post processing and result extraction
+/post1 
+set,last
+*get,ifcnv,active,,solu,cnvg
+*get,nset,active,,set,nset
+*if,ifcnv,eq,0,then
+     set,previous
+	 nset = nset - 1
+*endif
+
+Npointer = npil+1
+
+*del,resultCompression
+*dim,resultCompression,TABLE,nset,12
+
+allsel
+csys,0
+
+*do,i,1,nset
+    set,,,,,,,i
+    /com, active set %i% out of %nset%
+
+	! ********** Getting force information
+    ! Data collection, pilot node
+    *get,resultCompression(i,1),node,Npointer,u,x		! Displacements
+    *get,resultCompression(i,2),node,Npointer,u,y
+    *get,resultCompression(i,3),node,Npointer,u,z
+    *get,resultCompression(i,4),node,Npointer,rf,fx		! Reaction forces
+    *get,resultCompression(i,5),node,Npointer,rf,fy
+    *get,resultCompression(i,6),node,Npointer,rf,fz
+
+    *get,resultCompression(i,7),node,Npointer+1,u,x		! Displacements
+    *get,resultCompression(i,8),node,Npointer+1,u,y
+    *get,resultCompression(i,9),node,Npointer+1,u,z
+    *get,resultCompression(i,10),node,Npointer+1,rf,fx	! Reaction forces
+    *get,resultCompression(i,11),node,Npointer+1,rf,fy
+    *get,resultCompression(i,12),node,Npointer+1,rf,fz
+*enddo
+allsel
+
+
+! ********** To create compression data matrix in CSV format
+*MWRITE,resultCompression(1,1),compressionForce,csv,,JIK,12,nset,1 
+(15f15.3) 
+
+/solu
+antype,static,restart,,,continue
+
+
+ 
+
+ 
+

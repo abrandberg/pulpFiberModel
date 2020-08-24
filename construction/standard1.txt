@@ -1,0 +1,206 @@
+! ********** Specify real constants for contact sets
+r,1,,,			      						! Adhesive Bond between fibers
+r,2,,,    									! Bottom and Target
+r,3,,, 										! Self  !Contact inside below fiber
+r,4,,, 										! Self  !Contact inside top fiber
+r,5,,,		    							! Top and Target
+
+
+! ********** Mapping keypoints with specified granularity
+! --- all the keypoints
+csys,1
+NNN = NINT(LFib/lstep) + 1
+*dim,kps,array,NNN
+i = 0
+slang = 0
+
+
+*if,ang,eq,0,then
+    sang = 0
+*else
+    Pitch = 2*sin(90-ang)*Pi*Rout/sqrt(1-sin(90-ang)**2)
+    b = Pitch/(2*Pi)
+    Lhel = sqrt(Rout**2+b**2)*2*Pi*LFib/Pitch
+    sang = 360*LFib/Pitch
+*endif
+
+
+*do,curl,0,LFib,lstep
+    slang = curl/LFib*sang !slang = slang + ang*(1/kldel)!curl/LFib*ang
+    *do,theta,0,360,astep
+        cyrt = mod(theta+slang,360)
+        *do,curr,Rin,Rout,rstep
+            k,,curr,cyrt,curl
+        *enddo
+    *enddo
+    i = i + 1
+    *get,kps(i),kp,,num,maxd
+    
+*enddo
+NNN = i
+
+
+! ********** Meshing all volumes with attributes
+count = 1
+*dim,darray,,denom
+
+*do,i,1,denom                                       ! volset - a set of volume numbering; set1 = matrix selection, set2 - cellulose selection
+    darray(i) = i
+*enddo
+
+*do,i,denom,1+1,-1                                  ! shuffle darray in order to get a unique random integers array
+    irand = nint(rand(0.5,i+0.4999))             
+    tmp = darray(i)
+    darray(i) = darray(irand)
+    darray(irand) = tmp
+*enddo
+
+vnum = 0
+test = 0
+*do,i,1,kcdel
+    *do,ii,2,krdel+1
+        test = test + 1
+        *if,ii,eq,krdel+1,then
+            coun = 1
+        *endif
+        flag = 0
+        *do,iii,1,kldel
+            ikp = kface*(iii-1)+(krdel+1)*(i-1)+ii
+            jkp = ikp+kface
+            kkp = jkp-1
+            lkp = ikp-1
+            mkp = ikp+krdel+1
+            nkp = mkp+kface
+            okp = nkp-1
+            pkp = mkp-1  
+            v,ikp,jkp,kkp,lkp,mkp,nkp,okp,pkp
+
+            vnum = vnum + 1
+            velem = mod(test,denom+1)
+                        
+			! Assign the parameters for the volumes
+            ! check if volume number is in the selection array
+
+            *do,j,1,numer
+               *if,velem,eq,darray(j),then
+                   flag = 1
+               *endif
+            *enddo   
+            
+            vsel,,,,vnum
+
+            *if,flag,eq,1,then
+                vatt,2,,1       ! matrix
+                         
+            *else
+                vatt,1,,1        ! cellulose
+                *if,ii,eq,krdel+1,then
+                    vmn = vnum
+                    coun = coun+1       
+                *endif
+            *endif
+
+            vsel,all
+            
+            count = count + 1
+        *enddo
+    *enddo
+*enddo
+
+
+vsel,all
+
+nummrg,kp                        ! merge keypoints
+numcmp,all                       ! compress numbers
+
+*do,i,0,kldel                    ! choose all the "fibrils" lines
+    lsel,u,loc,z,i*lstep
+*enddo
+
+*get,llen,line,lsnext(0),leng
+lesize,all,esizeL
+lsel,inve                        ! choose cross-section lines
+								 ! --- soften the tolerance
+*do,curl,0,LFib,lstep
+    slang = curl/LFib*ang
+    *do,theta,0,360,astep
+        lsel,u,loc,y,mod(theta+slang,360)
+    *enddo
+*enddo
+
+*get,llen,line,lsnext(0),leng
+lesize,all,,,esizeH
+
+alls
+lesize,all,,,esizeT
+
+allsel
+mshape,0,3d 
+mshkey,1                        !use mapped mashing
+vmesh,all
+
+ 
+!******************
+alls
+shpp,off
+modmsh,detach
+vdele,all,,,1
+allsel,all
+shpp,on
+eplot
+
+alls
+csys,0
+seltol,1e-7
+
+esel,all
+*get,elnum,elem,0,num,max
+
+csys,1
+*vget,ecent,elem,,cent,y
+
+!*do,j,1,elnum
+!    local,12+j,0,,,,ecent(j),-ang
+!    emodif,j,esys,12+j
+!*enddo
+
+
+*get,cdsymax,cdsy,,num,max
+
+*do,j,1,elnum
+    
+    *get,tempNode1,elem,j,node,1        ! 
+    *get,tempNode2,elem,j,node,2        ! 
+    *get,tempNode3,elem,j,node,3
+    *get,tempNode4,elem,j,node,4    
+    *get,tempNode6,elem,j,node,6        ! 
+
+    cs,cdsymax+j,0,tempNode2,tempNode3,tempNode6 
+    clocal,cdsymax+j,0,0,0,0,0,0,90
+
+    emodif,j,esys,cdsymax+j
+    csys,1
+*enddo
+allsel
+
+csys,0
+alls
+
+! ********** Create some CMs for tracking the ends
+csys,1
+seltol,1e-4
+nsel,s,loc,x,Rout
+nsel,r,loc,z,LFib
+cm,FibEndOuter,nodes
+
+nsel,s,loc,x,Rin
+nsel,r,loc,z,LFib
+cm,FibEndInner,nodes
+
+allsel
+csys,0
+
+
+/reset
+save
+

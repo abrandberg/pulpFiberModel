@@ -1,0 +1,121 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This snippet introduces the boundary conditions for:
+! LONGITUDINAL (Z-Direction) COMPRESSION
+!
+! It adresses the following modelling steps:
+! - Assign contact elements to the relevant areas:
+!   ¤ First open end of fiber.
+!   ¤ Second open end of fiber.
+!   ¤ Lumen.
+! - 
+
+! ********** New element assignment
+! Hull and contact elements
+seltol,1e-4
+csys,1                                  ! Cylindrical coordinate system
+
+! --- bottom
+mat,1								    ! 
+nsel,,loc,z,0
+esln                					! Selects those elements attached to the selected nodes.
+type,2		             				! Element type
+real,1              					! Real constant, 1=top
+esurf	 		          				! Generate contact elements 
+
+! --- front
+mat,1
+nsel,,loc,z,LFib
+esln
+type,4
+real,2
+esurf
+
+! --- self contact and target elements top and bottom
+nsel,,loc,x,Rin                              ! Rin=internal radius
+esln
+mat,2
+type,6
+real,3 
+esurf
+type,3
+real,3
+esurf
+
+alls
+
+
+! ********** Load parameters
+strain = 20               ! obs      				! applied strain in %
+
+
+! ********** Boundary conditions
+
+
+
+! ********** Target elements (press)
+/prep7
+csys,0
+
+*get,maxz,node,,mxloc,z
+*get,minz,node,,mnloc,z
+
+alen = (maxz-minz)/2
+
+*get,nmax,node,,num,maxd
+esel,type,1
+nsle
+
+*get,maxy,node,,mxloc,y
+*get,miny,node,,mnloc,y
+allsel
+athick = (maxy-miny)
+
+
+! ********** Create rigid plates
+xFactor = 1.2*Rout
+yFactorMin = -1.2*Rout
+yFactorMax = 1.2*Rout
+
+csys,0
+! --- top, 
+n,,-xFactor, yFactorMin, minz
+n,, xFactor, yFactorMin, minz
+n,, xFactor, yFactorMax, minz
+n,,-xFactor, yFactorMax, minz
+mmm = node(-xFactor, yFactorMin,minz) ! Node number
+type,5
+real,1
+e,mmm,mmm+1,mmm+2,mmm+3
+
+! --- bottom, 
+n,,-xFactor, yFactorMin, maxz
+n,,-xFactor, yFactorMax, maxz
+n,, xFactor, yFactorMax, maxz
+n,, xFactor, yFactorMin, maxz
+nnn = node(-xFactor, yFactorMin, maxz)
+type,5
+real,2
+e,nnn,nnn+1,nnn+2,nnn+3 !order assign botom or surface with rigt hand rule. No need csym
+alls
+
+*get,npil,node,,num,maxd
+tshap,pilo
+type,5
+real,1
+n,npil+1,0,maxy
+e,npil+1
+real,2
+n,npil+2,0,miny
+e,npil+2
+
+shpp,on
+check
+
+
+! ********** Load step 1: Compression
+/solu
+d,npil+1,all
+d,npil+2,all
+d,npil+1,uz,0
+d,npil+2,uz,-strain*(athick-2*tkn)/100   		! apply displacement, athick= maxy-miny,  
+

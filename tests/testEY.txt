@@ -1,0 +1,73 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Test: Fiber-Fiber bond normal load
+!
+! This tests perform a normal load test on a fiber-fiber bond. It can also be
+! used to probe the normal direction stiffness of a single fiber. It should be
+! inserted before the plates are removed.
+!
+
+/prep7 
+! ********** EY test: Boundary conditions
+d,npil+1,ux,0
+d,npil+1,uy,(cCounter-20)*Tkn*0.1
+d,npil+1,uz,0
+d,npil+1,rotx,0
+d,npil+1,roty,0
+d,npil+1,rotz,0
+
+d,npil+2,all,0
+
+
+! ********** EY test: Solution settings
+/solu
+nsubst,tsteps,tsteps*2000,NINT(tsteps/4)
+time,1
+solve
+
+
+! ********** EY test: Post processing and result extraction
+/post1
+set,last
+*get,ifcnv,active,,solu,cnvg
+*get,nset,active,,set,nset
+*if,ifcnv,eq,0,then
+     set,previous
+	 nset = nset - 1
+*endif
+
+*del,resultEY
+*dim,resultEY,TABLE,nset,12
+
+csys,0
+allsel
+
+*do,i,1,nset
+    set,,,,,,,i
+    /com, active set %i% out of %nset%
+	/com, CSBS = %CSBS%
+	          
+	*get,resultEY(i,1),node,npil+1,u,x				  ! Displacements
+	*get,resultEY(i,2),node,npil+1,u,y
+	*get,resultEY(i,3),node,npil+1,u,z
+	*get,resultEY(i,4),node,npil+1,rf,fx			  ! Reaction forces
+	*get,resultEY(i,5),node,npil+1,rf,fy
+	*get,resultEY(i,6),node,npil+1,rf,fz
+        		
+	*get,resultEY(i,7),node,npil+2,u,x			      ! Displacements
+	*get,resultEY(i,8),node,npil+2,u,y
+	*get,resultEY(i,9),node,npil+2,u,z
+	*get,resultEY(i,10),node,npil+2,rf,fx			  ! Reaction forces
+	*get,resultEY(i,11),node,npil+2,rf,fy
+	*get,resultEY(i,12),node,npil+2,rf,fz
+
+*enddo
+allsel
+
+! ********** EY test: Extracting data to CSV
+*MWRITE,resultEY(1,1),resultEY,csv,,JIK,6,nset,1 
+(12f12.3) 
+
+allsel
+save,eyTest,db,,all
+

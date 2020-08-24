@@ -1,0 +1,36 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Relaxation step
+! This snippet consists of two steps, which together cause the model to
+! first relax the boundary conditions on the plates, and then prepare the
+! model for further manipulation. 
+!
+! Upon completion, an image of the database is saved for future use. The
+! code may also be connected in series with other code segments.
+!
+
+ddele,npil+1,all,,,FORCE
+ddele,npil+3, uy,,,FORCE
+ddele,npil+4,all,,,FORCE
+allsel
+nsubst,tsteps,tsteps*2000,NINT(tsteps/50)
+time,2
+solve
+
+fdele,npil+1,all
+fdele,npil+3, fy,,,fixed
+fdele,npil+4,all
+time,3
+solve
+
+
+seltol,1e-4
+nsel,s,loc,z,0
+cm,bottomEnd,node
+allsel
+nsel,s,loc,z,LFib
+cm,topEnd,node
+allsel
+
+save
+save,relaxedStructure,db,,all
+

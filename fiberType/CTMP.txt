@@ -1,0 +1,5 @@
+! ********** Fiber type: CTMP Pulp
+pMulti = kcdel*krdel
+mvf = 0.55                          ! Volume fraction matrix
+numer = mvf*pMulti
+denom = 1*pMulti 

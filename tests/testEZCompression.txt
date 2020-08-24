@@ -1,0 +1,95 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! EZ longitudinal compression stiffness test
+!
+! This snippet performs a normal test on the structure by moving the far
+! end of the fiber in the axial direction while keeping the other end fixed.
+!
+! The differences between this test and EZ Test are:
+!
+! 1. Load direction: The load is compressive in this test but extensional 
+!    in EZ test.
+! 2. Load range: The enforced displacement is enough to cause buckling and/or
+!    permanent deformation in this model. In EZ test only the elastic region 
+!    is probed properly. 
+!
+! The results are extracted into the array "resultEZCompress" and written
+! to a csv file.
+!
+
+
+! ********** EZ test: Check that plates have been deleted
+*if,plateStatus,eq,1,then
+    /prep7
+    *get,eMax,elem,0,num,max
+    edele,eMax
+    edele,eMax-1
+    edele,eMax-2
+    edele,eMax-3
+    edele,eMax-4
+    edele,eMax-5
+
+    ndele,npil-15,npil+4,1        ! Remove the nodes making up the elements
+
+    plateStatus = 0
+*else
+    /prep7
+*endif
+
+
+! ********** EZ test: Boundary conditions
+seltol,1e-4
+cmsel,s,bottomEnd
+d,all,all,0
+allsel
+
+cmsel,s,topEnd
+d,all,all,0
+d,all,uz,-LFib*0.07                          
+allsel
+
+
+! ********** EZ test: Solution settings
+/solu
+nsubst,tsteps,tsteps*2000,NINT(tsteps/2)
+time,1
+solve
+
+
+! ********** EZ test: Post processing and result extraction
+/post1
+set,last
+*get,ifcnv,active,,solu,cnvg
+*get,nset,active,,set,nset
+*if,ifcnv,eq,0,then
+     set,previous
+	 nset = nset - 1
+*endif
+
+*del,resultEZCompress
+*dim,resultEZCompress,TABLE,nset,6
+
+csys,0
+allsel
+*do,i,1,nset
+    set,,,,,,,i
+    /com, active set %i% out of %nset%
+    /com, CSBS = %CSBS%
+
+    cmsel,s,topEnd
+    fsum
+    *get,resultEZCompress(i,1),node,nmax,u,x				 ! Displacements
+    *get,resultEZCompress(i,2),node,nmax,u,y
+    *get,resultEZCompress(i,3),node,nmax,u,z
+    *get,resultEZCompress(i,4),fsum,0,item,fx				 ! Reaction forces
+    *get,resultEZCompress(i,5),fsum,0,item,fy
+    *get,resultEZCompress(i,6),fsum,0,item,fz
+    allsel		
+*enddo
+
+! ********** EZ test: Extracting data to CSV
+*MWRITE,resultEZCompress(1,1),resultEZCompress,csv,,JIK,6,nset,1 
+(12f12.3) 
+
+allsel
+save,ezTestCompress,db,,all
+

@@ -1,0 +1,26 @@
+! ********** Solution options
+tsteps = 100                    				! number of time step
+tsteps= NINT(strain/10*tsteps)   		        ! correct wrt strain
+/solu
+
+antype,static
+outpr,,none
+outres,all,-100
+nlgeom,on
+cutcontrol,plslimit,0.15 
+eqsl,sparse,,,alt2
+bcso,,incore
+cnvtol,f,1,1e-5
+
+lnsrch,on
+autots,on
+neqit,50
+resc,defi,all,-100,10
+nsubst,tsteps,tsteps*2000,NINT(tsteps/3)
+time,1
+
+save
+allsel
+solve
+!/exit,all
+

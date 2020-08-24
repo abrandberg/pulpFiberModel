@@ -1,0 +1,45 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Cross section modelling
+!
+! This snippets selects the end of a single fiber and meshes it with 
+! MESH200 elements. It then exports the meshed surface as an ASCII cross-
+! section. 
+!
+! This cross section can be imported and used when modelling the fiber as a
+! beam using BEAM188 or BEAM189
+save,,,,all
+resume
+
+/prep7
+knode,,fibendouter
+knode,,fibendinner
+
+
+*do,xLoop,1,kcdel
+	ikp = xLoop
+	jkp = mod(xLoop+1,kcdel)+1
+	kkp = mod(xLoop+1+kcdel,kcdel)+kcdel+1
+	lkp = xLoop+kcdel
+	a,ikp,jkp,kkp,lkp
+*enddo
+
+btol,1e-6
+aadd,all
+lesize,all,,,1
+mshape,1,2d
+mshkey,0
+
+et,9,200
+keyopt,9,1,7!6
+keyopt,9,2,1
+type,9
+edele,all
+allsel
+amesh,all
+
+allsel
+secwrite,RCS,,,9
+
+resume
+

@@ -1,0 +1,19 @@
+! ********** Calculated parameters
+Pi = acos(-1)                                   ! 3.1415..
+*afun,deg                                       ! trigonometric in degrees
+
+
+! ********** Numerical parameters
+krdel = 2										! partitions per radius
+kcdel = 30										! partitions per circumference
+kldel = 10                                      ! partitions per length
+kface = (krdel+1)*(kcdel+1)             		! number of nodes on the face
+
+esizeL = LFib/kldel                            ! element size in the length direction
+esizeT = tkn/(krdel)                            ! element size in the thickness direction
+esizeH = 2*Pi*Rin/(kcdel)                       ! element size in the hoop direction
+
+rstep = (Rout-Rin)/krdel        				! step on radius
+astep = 360/kcdel               				! step on angle
+lstep = LFib/kldel              				! step on length
+

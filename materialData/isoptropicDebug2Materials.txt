@@ -1,0 +1,32 @@
+! ********** Material properties
+!------ fibril--------
+mptemp,   1,0  
+mpdata,dens,1,,1e-18
+mpdata,  ex,1,,134e3/2
+mpdata,  ez,1,,134e3/2
+mpdata,  ey,1,,134e3/2
+mpdata,prxz,1,,0.2!0.1
+mpdata,prxy,1,,0.2!0.04
+mpdata,pryz,1,,0.2!0.1
+mpdata, gxz,1,,4.4e3/2
+mpdata, gxy,1,,4.4e3/2
+mpdata, gyz,1,,4.4e3/2
+tb,biso,1,1,2
+tbtemp,0
+tbdata,,1000,2000
+
+! --- matrix
+mptemp,   1,0 
+mpdata,dens,2,,1e-18
+mpdata,  ex,2,,4e3
+mpdata,  ez,2,,4e3
+mpdata,  ey,2,,4e3
+mpdata,prxz,2,,0.2!0.2
+mpdata,prxy,2,,0.2!0.01
+mpdata,pryz,2,,0.2!0.2
+mpdata, gxz,2,,2e3
+mpdata, gxy,2,,2e3
+mpdata, gyz,2,,2e3
+tb,biso,2,1,2
+tbtemp,0
+tbdata,,100,250

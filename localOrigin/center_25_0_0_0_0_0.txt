@@ -1,0 +1,21 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This is the first part of the extension from modelling single fibers to 
+! modelling bond crosses and entire networks. Basically, this file tells
+! where the center of the fiber should be:
+!
+xOrigin = 25
+yOrigin = 0!yMaxTemp+Rin+Tkn
+zOrigin = 0!LFib/2
+thxyOrigin = 0
+thyzOrigin = 0
+thzxOrigin = 0 !90
+
+csys,0
+clocal,cCounter+1,0,xOrigin,yOrigin,zOrigin,thxyOrigin,thyzOrigin,thzxOrigin
+csys,0
+clocal,cCounter+2,1,xOrigin,yOrigin,zOrigin,thxyOrigin,thyzOrigin,thzxOrigin
+csys,0                                                                     ! Go back to the standard coordinate system before doing anything else, just in case.
+
+cCounter = cCounter + 2
+
+

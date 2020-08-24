@@ -1,0 +1,101 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Bending test: Non-elementary solution
+!
+
+
+! ********** Bending ES-XXX1 Test: Check that plates have been deleted
+*if,plateStatus,eq,1,then
+    /prep7
+    *get,eMax,elem,0,num,max
+    edele,eMax
+    edele,eMax-1
+    edele,eMax-2
+    edele,eMax-3
+    edele,eMax-4
+    edele,eMax-5
+
+    ndele,npil-15,npil+4,1        ! Remove the nodes making up the elements
+    plateStatus = 0
+*else
+    /prep7
+*endif
+
+
+! ********** Bending ES-XXX1 Test Boundary conditions
+seltol,1e-4
+cmsel,s,bottomEnd
+d,all,all,0
+allsel
+cmsel,s,topEnd
+d,all,all,0
+d,all,uy,-0.1*105*(athick-2*tkn)/100
+
+
+! ********** Bending ES-XXX1 Test: Solution options
+/solu
+allsel
+time,1
+solve
+
+save
+
+
+! ********** Bending ES-XXX1 Test: Result extraction
+/post1 
+set,last
+*get,ifcnv,active,,solu,cnvg
+*get,nset,active,,set,nset
+*if,ifcnv,eq,0,then
+     set,previous
+	 nset = nset - 1
+*endif
+
+nStart = 1
+nEnd = nmax
+
+*get,EMAX,elem,0,num,maxd
+
+! Calculate the maximum height of the model in compressed form
+esel,s,mat,,1,2
+nsle,s,all
+*get,maxy2,node,,mxloc,y
+*get,miny2,node,,mnloc,y
+allsel
+athick2 = (maxy2-miny2)
+
+*del,resultESXXX1
+*dim,resultESXXX1,TABLE,nset,12
+
+csys,0
+
+*do,i,1,nset
+    set,,,,,,,i
+		
+	! ********** Getting force information	      
+    cmsel,s,bottomEnd
+    fsum 
+    *get,resultESXXX1(i,1),node,nStart,u,x						! Displacements
+    *get,resultESXXX1(i,2),node,nStart,u,y
+    *get,resultESXXX1(i,3),node,nStart,u,z
+    *get,resultESXXX1(i,4),fsum,0,item,fx						! Reaction forces
+    *get,resultESXXX1(i,5),fsum,0,item,fy
+    *get,resultESXXX1(i,6),fsum,0,item,fz
+
+    allsel
+    cmsel,s,topEnd
+    fsum
+    *get,resultESXXX1(i,7),node,nEnd,u,x						! Displacements
+    *get,resultESXXX1(i,8),node,nEnd,u,y
+    *get,resultESXXX1(i,9),node,nEnd,u,z
+    *get,resultESXXX1(i,10),fsum,0,item,fx						! Reaction forces
+    *get,resultESXXX1(i,11),fsum,0,item,fy
+    *get,resultESXXX1(i,12),fsum,0,item,fz
+    allsel
+*enddo
+
+! ********** Bending ES-XXX1 Test: Extracting data to CSV
+*MWRITE,resultESXXX1(1,1),resultESXXX1,csv,,JIK,12,nset,1 
+(12f12.3) 
+
+allsel
+

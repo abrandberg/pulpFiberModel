@@ -1,0 +1,243 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Boundary conditions: Transverse compression with 4 plates
+!
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+sizeL = LFib/kldel
+topFac = sizeL*NINT(0.5*kldel)
+botFac = sizeL*NINT(0.5*kldel)
+! ********** New element assignment
+! Hull and contact elements
+seltol,1e-4
+
+r,10
+r,11
+r,12
+r,13
+
+
+! ********** Self-contact and target elements top and bottom
+*do,cLoop,22,cCounter,2
+    rLoop = cLoop !obs
+    csys,cLoop
+
+    nsel,,loc,x,Rin                              ! Rin=internal radius
+    esln
+    mat,2
+    type,6
+    real,rLoop 
+    esurf
+    type,3
+    real,rLoop
+    esurf
+    alls
+*enddo
+csys,0
+
+! Define contact pairs from the top of fibers to the top plate
+*do,cLoop,22,cCounter,2
+    rLoop = cLoop ! obs
+    csys,cLoop
+
+    mat,1								
+    nsel,,loc,x,Rout                        ! Rout = external radius
+    nsel,r,loc,y,0,180                      ! 0 - 180 = top half
+    nsel,r,loc,z,0,topFac
+    esln                					! Selects those elements attached to the selected nodes.
+    type,2		             				! Element type
+    real,10              					! Real constant, 1=top
+    
+    esurf	 		          				! Generate contact elements 
+    
+    
+    mat,1                                   !1
+    nsel,,loc,x,Rout                        ! Rout = external radius
+    nsel,r,loc,y,0,180                      ! 0 - 180 = top half
+    nsel,r,loc,z,topFac,LFib
+    esln                					! Selects those elements attached to the selected nodes.
+    type,2		             				! Element type
+    real,10              					! Real constant, 1=top
+    
+    esurf	 		          				! Generate contact elements 
+
+*enddo
+csys,0
+
+! Define contact pairs from the top of fibers to the bottom plate
+*do,cLoop,22,cCounter,2
+    rLoop = cLoop 
+    csys,cLoop
+
+    mat,1								
+    nsel,,loc,x,Rout                        ! Rout = external radius
+    nsel,r,loc,y,180,360                    ! 180 - 360 = bottom half
+    nsel,r,loc,z,0,topFac
+    esln                					! Selects those elements attached to the selected nodes.
+    type,2		             				! Element type
+    real,12              					! Real constant, 1=top
+    esurf	 		          				! Generate contact elements 
+
+    mat,1                                   !1
+    nsel,,loc,x,Rout                        ! Rout = external radius
+    nsel,r,loc,y,180,360                    ! 180 - 360 = bottom half
+    nsel,r,loc,z,topFac,LFib
+    esln                					! Selects those elements attached to the selected nodes.
+    type,2		             				! Element type
+    real,12              					! Real constant, 1=top
+    esurf	 		          				! Generate contact elements 
+
+*enddo
+csys,0
+
+! Define contact pairs for all fibers to all fibers
+allsel
+*do,cLoop,22,cCounter,2
+    rLoop = cLoop - 20
+    csys,cLoop
+
+    mat,1								
+    nsel,,loc,x,Rout                        ! Rout = external radius
+    esln                					! Selects those elements attached to the selected nodes.
+    type,3		             				! Element type
+    real,50              					! Real constant, 1=top
+    esurf	 		          				! Generate contact elements 
+
+    mat,1                                   !1
+    nsel,,loc,x,Rout                        ! Rout = external radius
+    esln                					! Selects those elements attached to the selected nodes.
+    type,6		             				! Element type
+    real,50              					! Real constant, 1=top
+    esurf	 		          				! Generate contact elements 
+
+*enddo
+csys,0
+
+
+
+
+
+! ********** Load parameters
+!strain = 80               ! obs      				! applied strain in %
+
+
+! ********** Boundary conditions
+!            Note that for the multi fiber network, there is no coupled
+!            set governing the behaviour of the fiber ends. This is because
+!            we wish to model not only the fiber bond zone but actually
+!            the whole fiber.
+
+alls
+! UZ Locked
+
+*do,cLoop,22,cCounter,2
+    csys,cLoop
+    nsel,s,LOC,Z,0,0
+    nsel,a,LOC,Z,LFib,LFib  
+    nrotat,all
+    CP,next,uz,all
+
+*enddo
+
+
+
+! ********** Target elements (press)
+/prep7
+csys,0
+
+*get,maxx,node,,mxloc,x
+*get,minx,node,,mnloc,x
+
+*get,maxz,node,,mxloc,z
+*get,minz,node,,mnloc,z
+
+alen = (maxz-minz)/2
+
+*get,nmax,node,,num,maxd
+esel,type,1
+nsle
+
+*get,maxy,node,,mxloc,y
+*get,miny,node,,mnloc,y
+allsel
+athick = (maxy-miny)
+
+
+! ********** Create rigid plates
+xFactor = 1.2*maxx
+zFactorMin = 0.2*LFib
+zFactorMax = 1.2*LFib
+
+zFactorDiv = topFac
+
+csys,0
+! --- top, bottom
+n,,-xFactor, maxy,-zFactorMin
+n,, xFactor, maxy,-zFactorMin
+n,, xFactor, maxy, zFactorDiv
+n,,-xFactor, maxy, zFactorDiv
+mmm = node(-xFactor, maxy,-zFactorMin) ! Node number
+type,5
+real,10
+e,mmm,mmm+1,mmm+2,mmm+3
+
+! --- top, front
+n,,-xFactor, maxy, zFactorDiv
+n,, xFactor, maxy, zFactorDiv
+n,, xFactor, maxy, zFactorMax
+n,,-xFactor, maxy, zFactorMax
+mmm = node(-xFactor, maxy, zFactorMax) ! Node number
+type,5
+real,10
+e,mmm-3,mmm-2,mmm-1,mmm
+
+! --- bottom, bottom
+zFactorDiv = botFac
+n,,-xFactor, miny,-zFactorMin
+n,,-xFactor, miny, zFactorDiv
+n,, xFactor, miny, zFactorDiv
+n,, xFactor, miny,-zFactorMin
+nnn = node(-xFactor, miny,-zFactorMin)
+type,5
+real,12
+e,nnn,nnn+1,nnn+2,nnn+3 !order assign botom or surface with rigt hand rule. No need csym
+alls
+
+! --- top, front
+n,,-xFactor, miny, zFactorDiv
+n,,-xFactor, miny, zFactorMax
+n,, xFactor, miny, zFactorMax
+n,, xFactor, miny, zFactorDiv
+nnn = node(-xFactor, miny, zFactorMax)
+type,5
+real,12
+e,nnn-1,nnn,nnn+1,nnn+2 !order assign botom or surface with rigt hand rule. No need csym
+alls
+
+
+*get,npil,node,,num,maxd
+tshap,pilo
+type,5
+real,10
+n,npil+1,0,maxy,0
+e,npil+1
+!real,10
+!n,npil+2,0,maxy,LFib
+!e,npil+2
+real,12
+n,npil+2,0,miny,0
+e,npil+2
+!real,12
+!n,npil+4,0,miny,LFib
+!e,npil+4
+shpp,on
+check
+
+! ********** Load step 1: Compression
+/solu
+d,npil+1,all
+d,npil+2,all
+!d,npil+3,all
+!d,npil+4,all
+d,npil+1,uy,-strain*(athick-2*tkn)/100   		! apply displacement, athick= maxy-miny,  
+!d,npil+2,uy,-strain*(athick-2*tkn)/100   		! apply displacement, athick= maxy-miny,  
